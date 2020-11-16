@@ -1,0 +1,7 @@
+kind: pipeline
+name: default
+steps:
+- name: lint 
+  image: hashicorp/terraform
+  commands:
+  - terraform fmt -check -recursive

@@ -1,0 +1,73 @@
+variant: fcos
+version: 1.1.0
+systemd:
+  units:
+  - name: clone-mailcow.service
+    enabled: true
+    contents: |
+      [Unit]
+      Description=Initial mailcow bootstrap
+      After=network-online.target
+      ConditionFirstBoot=yes
+
+      [Service]
+      Type=oneshot
+      ExecStart=/usr/bin/docker run --rm -i -v /opt/mailcow-dockerized:/opt/mailcow-dockerized:z fedora:32
+      StandardInput=file:/usr/local/bin/clone-mailcow.sh 
+      RemainAfterExit=yes
+
+      [Install]
+      WantedBy=multi-user.target
+  - name: mailcow.service
+    enabled: true
+    contents: |
+      [Unit]
+      Description=Mailcow email server
+      After=network-online.target clone-mailcow.service
+      
+      [Service]
+      Type=simple
+      ExecStart=/usr/bin/docker run -i -v /opt/mailcow-dockerized:/opt/mailcow-dockerized -v /var/run/docker.sock:/var/run/docker.sock --network host --privileged --entrypoint /bin/bash docker/compose:debian-1.27.4
+      StandardInput=file:/usr/local/bin/run-mailcow.sh
+
+      [Install]
+      WantedBy=multi-user.target
+storage:
+  disks:
+  - device: /dev/nvme1n1
+    partitions:
+    - label: config
+      number: 1
+      size_mib: 2048 
+      start_mib: 0
+    - label: volumes
+      number: 0
+  filesystems:
+  - path: /var/opt/mailcow-dockerized
+    device: /dev/disk/by-partlabel/config
+    format: ext4
+  - path: /var/lib/docker/volumes
+    device: /dev/disk/by-partlabel/volumes
+    format: ext4
+  files:
+  - path: /usr/local/bin/clone-mailcow.sh
+    mode: 0644
+    contents:
+      inline: |
+        #!/bin/bash
+        pushd /opt/mailcow-dockerized
+        dnf install -y git
+        git clone https://github.com/mailcow/mailcow-dockerized .
+        mkdir -p data/assets/ssl 
+        openssl req -x509 -newkey rsa:4096 -keyout data/assets/ssl-example/key.pem -out data/assets/ssl-example/cert.pem -days 365 -subj "/C=DE/ST=NRW/L=Willich/O=mailcow/OU=mailcow/CN=example.com" -sha256 -nodes
+        cp -n -d data/assets/ssl-example/*.pem data/assets/ssl/
+        echo '${base64_conf}' | base64 -d > mailcow.conf 
+        popd
+  - path: /usr/local/bin/run-mailcow.sh
+    mode: 0644
+    contents:
+      inline: |
+        #!/bin/bash
+        pushd /opt/mailcow-dockerized
+        docker-compose pull
+        docker-compose up

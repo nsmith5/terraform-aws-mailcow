@@ -1,0 +1,7 @@
+# Vim
+*.swp
+
+# Terraform
+terraform.tfstate
+terraform.tfstate.backup
+.terraform/
