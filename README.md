@@ -1,6 +1,6 @@
 # AWS Mailcow Terraform module
 
-[![Build Status][build-badge][build-link]
+[![Build Status][build-badge]][build-link]
 
 [build-badge]: https://cloud.drone.io/api/badges/nsmith5/terraform-aws-mailcow/status.svg
 [build-link]: https://cloud.drone.io/nsmith5/terraform-aws-mailcow
